@@ -58,7 +58,9 @@ namespace CardAnalysis
 
         protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
         {
-            // No border under the toolbar — clean edge
+            int y = e.AffectedBounds.Height - 1;
+            using var pen = new Pen(Color.FromArgb(50, 50, 50));
+            e.Graphics.DrawLine(pen, 0, y, e.AffectedBounds.Width, y);
         }
 
         protected override void OnRenderLabelBackground(ToolStripItemRenderEventArgs e)

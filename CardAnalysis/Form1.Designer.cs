@@ -39,6 +39,7 @@ namespace CardAnalysis
             btnRotateLeft    = new ToolStripButton();
             txtRotateStep    = new ToolStripLabel();
             btnRotateRight   = new ToolStripButton();
+            lblRotationTotal = new ToolStripLabel();
             lblZoom          = new ToolStripLabel();
             imageCanvas      = new ImageCanvas();
             statusStrip      = new StatusStrip();
@@ -83,10 +84,9 @@ namespace CardAnalysis
             toolStrip.GripStyle = ToolStripGripStyle.Hidden;
             toolStrip.Items.AddRange(new ToolStripItem[]
             {
-                btnZoomIn, btnZoomOut, btnFit,
+                btnZoomIn, lblZoom, btnZoomOut, btnFit,
                 sep2, btnCrop, sep3, btnGuides, btnAutoDetect, btnCropToBorders,
-                sep4, btnRotateLeft, txtRotateStep, btnRotateRight,
-                lblZoom
+                sep4, btnRotateLeft, txtRotateStep, btnRotateRight, lblRotationTotal
             });
 
             btnZoomIn.Text = "＋";
@@ -127,6 +127,9 @@ namespace CardAnalysis
             btnRotateRight.Text = " ↻ ";
             btnRotateRight.ToolTipText = "Rotate right by step amount";
             btnRotateRight.Click += BtnRotateRight_Click;
+
+            lblRotationTotal.Text         = "";
+            lblRotationTotal.ToolTipText  = "Total rotation applied to current image";
 
             lblZoom.Text = "";
             toolStrip.ResumeLayout(false);
@@ -186,6 +189,7 @@ namespace CardAnalysis
         private ToolStripButton btnRotateLeft;
         private ToolStripLabel txtRotateStep;
         private ToolStripButton btnRotateRight;
+        private ToolStripLabel lblRotationTotal;
         private ToolStripLabel lblZoom;
         private ImageCanvas imageCanvas;
         private StatusStrip statusStrip;

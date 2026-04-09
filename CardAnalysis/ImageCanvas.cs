@@ -70,7 +70,10 @@ namespace CardAnalysis
             BottomInner, BottomOuter
         }
         private GuideId _draggingGuide = GuideId.None;
-        private const int GuideHitSlop = 6;
+        private const int GuideHitSlop   = 6;
+        private const int HandleWidth    = 16;  // pixels perpendicular to guide direction
+        private const int HandleLength   = 52;  // pixels along guide direction
+        private const int HandleRadius   = 7;   // corner radius of drag handle
 
         // ── Events ───────────────────────────────────────────────────────
         public event EventHandler<ZoomChangedEventArgs>? ZoomChanged;
@@ -776,7 +779,22 @@ namespace CardAnalysis
         {
             if (!_guidesVisible || _image is null || _isCropMode) return GuideId.None;
 
-            // Convert guide image-pixel positions to canvas coords for hit testing
+            float midX = ClientSize.Width  / 2f;
+            float midY = ClientSize.Height / 2f;
+            int   hw   = HandleWidth  / 2;
+            int   hl   = HandleLength / 2;
+
+            // Handle zones — wider perpendicular hit area at the centre of the viewport
+            if (InHandle(pt, ImgToCanX(_guideLeftOuter),  midY, true,  hw, hl)) return GuideId.LeftOuter;
+            if (InHandle(pt, ImgToCanX(_guideLeftInner),  midY, true,  hw, hl)) return GuideId.LeftInner;
+            if (InHandle(pt, ImgToCanX(_guideRightInner), midY, true,  hw, hl)) return GuideId.RightInner;
+            if (InHandle(pt, ImgToCanX(_guideRightOuter), midY, true,  hw, hl)) return GuideId.RightOuter;
+            if (InHandle(pt, midX, ImgToCanY(_guideTopOuter),    false, hw, hl)) return GuideId.TopOuter;
+            if (InHandle(pt, midX, ImgToCanY(_guideTopInner),    false, hw, hl)) return GuideId.TopInner;
+            if (InHandle(pt, midX, ImgToCanY(_guideBottomInner), false, hw, hl)) return GuideId.BottomInner;
+            if (InHandle(pt, midX, ImgToCanY(_guideBottomOuter), false, hw, hl)) return GuideId.BottomOuter;
+
+            // Fallback: line hit anywhere along the guide (original behaviour)
             if (Math.Abs(pt.X - ImgToCanX(_guideLeftOuter))   <= GuideHitSlop) return GuideId.LeftOuter;
             if (Math.Abs(pt.X - ImgToCanX(_guideLeftInner))   <= GuideHitSlop) return GuideId.LeftInner;
             if (Math.Abs(pt.X - ImgToCanX(_guideRightInner))  <= GuideHitSlop) return GuideId.RightInner;
@@ -787,6 +805,13 @@ namespace CardAnalysis
             if (Math.Abs(pt.Y - ImgToCanY(_guideBottomOuter)) <= GuideHitSlop) return GuideId.BottomOuter;
 
             return GuideId.None;
+        }
+
+        private static bool InHandle(Point pt, float cx, float cy, bool vertical, int halfW, int halfL)
+        {
+            float dx = Math.Abs(pt.X - cx);
+            float dy = Math.Abs(pt.Y - cy);
+            return vertical ? (dx <= halfW && dy <= halfL) : (dx <= halfL && dy <= halfW);
         }
 
         private void MoveGuide(GuideId guide, Point mousePos)
@@ -910,11 +935,36 @@ namespace CardAnalysis
             g.DrawLine(guidePen, 0, boy, canW, boy);
 
             // ── Measurement labels ─────────────────────────────────────
+            // When two paired guides are so close that their handles would cover the label,
+            // shift the label away from the handle centre (midY for vertical pairs,
+            // midX for horizontal pairs). L/R shift in opposite directions, as do T/B,
+            // so the labels never land on top of each other when multiple pairs are narrow.
             var m = GetGuideMeasurements();
-            DrawMeasurementLabel(g, $"L: {(int)Math.Round(m.Left)}px",   (lox + lix) / 2f, canH / 2f,  vertical: true);
-            DrawMeasurementLabel(g, $"R: {(int)Math.Round(m.Right)}px",  (rix + rox) / 2f, canH / 2f,  vertical: true);
-            DrawMeasurementLabel(g, $"T: {(int)Math.Round(m.Top)}px",    canW / 2f, (toy + tiy) / 2f,  vertical: false);
-            DrawMeasurementLabel(g, $"B: {(int)Math.Round(m.Bottom)}px", canW / 2f, (biy + boy) / 2f,  vertical: false);
+            const float safeZone = HandleLength + 12f;       // canvas-pixel gap threshold
+            const float shiftV   = HandleLength / 2f + 24f;  // Y-shift for L/R labels (~label height/2 is small)
+            const float shiftH   = HandleLength / 2f + 54f;  // X-shift for T/B labels (labels are wider, need more room)
+            float midX = canW / 2f;
+            float midY = canH / 2f;
+
+            DrawMeasurementLabel(g, $"L: {(int)Math.Round(m.Left)}px",
+                (lox + lix) / 2f,
+                lix - lox < safeZone ? midY - shiftV : midY,
+                vertical: true);
+            DrawMeasurementLabel(g, $"R: {(int)Math.Round(m.Right)}px",
+                (rix + rox) / 2f,
+                rox - rix < safeZone ? midY + shiftV : midY,
+                vertical: true);
+            DrawMeasurementLabel(g, $"T: {(int)Math.Round(m.Top)}px",
+                tiy - toy < safeZone ? midX + shiftH : midX,
+                (toy + tiy) / 2f,
+                vertical: false);
+            DrawMeasurementLabel(g, $"B: {(int)Math.Round(m.Bottom)}px",
+                boy - biy < safeZone ? midX - shiftH : midX,
+                (biy + boy) / 2f,
+                vertical: false);
+
+            // ── Drag handles ───────────────────────────────────────────
+            DrawGuideHandles(g, lox, lix, rix, rox, toy, tiy, biy, boy);
         }
 
         private void DrawInfoPanel(Graphics g)
@@ -1019,6 +1069,75 @@ namespace CardAnalysis
             // (caller passes the centre of the gap; if label doesn't fit, nudge it away)
             g.FillRectangle(bgBrush, x - 3, y - 2, sz.Width + 6, sz.Height + 4);
             g.DrawString(text, font, fgBrush, x, y);
+        }
+
+        private void DrawGuideHandles(Graphics g,
+            float lox, float lix, float rix, float rox,
+            float toy, float tiy, float biy, float boy)
+        {
+            float midX = ClientSize.Width  / 2f;
+            float midY = ClientSize.Height / 2f;
+
+            var prev = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // (canvas-x, canvas-y, isVertical, guideId)
+            var handles = new (float cx, float cy, bool vert, GuideId id)[]
+            {
+                (lox,  midY, true,  GuideId.LeftOuter),
+                (lix,  midY, true,  GuideId.LeftInner),
+                (rix,  midY, true,  GuideId.RightInner),
+                (rox,  midY, true,  GuideId.RightOuter),
+                (midX, toy,  false, GuideId.TopOuter),
+                (midX, tiy,  false, GuideId.TopInner),
+                (midX, biy,  false, GuideId.BottomInner),
+                (midX, boy,  false, GuideId.BottomOuter),
+            };
+
+            using var normalBg = new SolidBrush(Color.FromArgb(215, 10, 28, 40));
+            using var activeBg = new SolidBrush(Color.FromArgb(230, 0,  80, 120));
+            using var rimPen   = new Pen(Color.FromArgb(255, 0, 200, 255), 1.5f);
+            using var dotBrush = new SolidBrush(Color.FromArgb(200, 0, 200, 255));
+
+            foreach (var (cx, cy, vert, id) in handles)
+                DrawHandle(g, cx, cy, vert, id == _draggingGuide ? activeBg : normalBg, rimPen, dotBrush);
+
+            g.SmoothingMode = prev;
+        }
+
+        private static void DrawHandle(Graphics g, float cx, float cy, bool vertical,
+            Brush bgBrush, Pen rimPen, Brush dotBrush)
+        {
+            float rx = vertical ? cx - HandleWidth  / 2f : cx - HandleLength / 2f;
+            float ry = vertical ? cy - HandleLength / 2f : cy - HandleWidth  / 2f;
+            float rw = vertical ? HandleWidth  : HandleLength;
+            float rh = vertical ? HandleLength : HandleWidth;
+
+            using var path = MakeRoundedRectPath(rx, ry, rw, rh, HandleRadius);
+            g.FillPath(bgBrush, path);
+            g.DrawPath(rimPen, path);
+
+            // Three grip dots centred in the handle
+            const float dotR = 1.8f;
+            const float gap  = 5f;
+            for (int i = -1; i <= 1; i++)
+            {
+                float dx = vertical ? 0f : i * gap;
+                float dy = vertical ? i * gap : 0f;
+                g.FillEllipse(dotBrush, cx + dx - dotR, cy + dy - dotR, dotR * 2, dotR * 2);
+            }
+        }
+
+        private static GraphicsPath MakeRoundedRectPath(float x, float y, float w, float h, int r)
+        {
+            int d = r * 2;
+            var path = new GraphicsPath();
+            path.AddArc(x,         y,         d, d, 180, 90);
+            path.AddArc(x + w - d, y,         d, d, 270, 90);
+            path.AddArc(x + w - d, y + h - d, d, d,   0, 90);
+            path.AddArc(x,         y + h - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         private void DrawCropOverlay(Graphics g)

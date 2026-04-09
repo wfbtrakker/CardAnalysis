@@ -4,11 +4,13 @@ namespace CardAnalysis
 {
     internal class AppSettings
     {
-        public float RotationStep        { get; set; } = 0.1f;
-        public bool  OverlaySave         { get; set; } = true;
-        public float PixelWhiteThreshold { get; set; } = 0.80f;
-        public float LineWhiteThreshold  { get; set; } = 0.55f;
-        public float BorderTolerancePct  { get; set; } = 0.006f;
+        public float  RotationStep        { get; set; } = 0.1f;
+        public bool   OverlaySave         { get; set; } = true;
+        public float  PixelWhiteThreshold { get; set; } = 0.80f;
+        public float  LineWhiteThreshold  { get; set; } = 0.55f;
+        public float  BorderTolerancePct  { get; set; } = 0.006f;
+        public string RawImageFolder       { get; set; } = "";
+        public string ProcessedImageFolder { get; set; } = "";
 
         // ── Persistence ───────────────────────────────────────────────────
 

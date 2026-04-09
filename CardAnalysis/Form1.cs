@@ -12,8 +12,10 @@ namespace CardAnalysis
             imageCanvas.PixelWhiteThreshold = settings.PixelWhiteThreshold;
             imageCanvas.LineWhiteThreshold  = settings.LineWhiteThreshold;
             imageCanvas.BorderTolerancePct  = settings.BorderTolerancePct;
-            _overlaySave                    = settings.OverlaySave;
-            txtRotateStep.Text              = settings.RotationStep.ToString("F1") + "°";
+            _overlaySave          = settings.OverlaySave;
+            _rawImageFolder       = settings.RawImageFolder;
+            _processedImageFolder = settings.ProcessedImageFolder;
+            txtRotateStep.Text    = settings.RotationStep.ToString("F1") + "°";
 
             imageCanvas.ZoomChanged     += OnZoomChanged;
             imageCanvas.CropModeChanged += OnCropModeChanged;
@@ -39,31 +41,87 @@ namespace CardAnalysis
             }
 
             // ── Toolbar ──────────────────────────────────────────────────
-            toolStrip.Renderer   = new ModernRenderer();
-            toolStrip.BackColor  = Color.FromArgb(30, 30, 30);
-            toolStrip.Font       = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-            toolStrip.AutoSize   = true;
-            toolStrip.LayoutStyle = ToolStripLayoutStyle.Flow;
-            toolStrip.Padding    = new Padding(4, 2, 4, 2);
+            toolStrip.Renderer         = new ModernRenderer();
+            toolStrip.BackColor        = Color.FromArgb(30, 30, 30);
+            toolStrip.Font             = new Font("Segoe UI", 9f, FontStyle.Regular);
+            toolStrip.AutoSize         = true;
+            toolStrip.LayoutStyle      = ToolStripLayoutStyle.Flow;
+            toolStrip.Padding          = new Padding(4, 4, 4, 4);
+            toolStrip.ImageScalingSize = new Size(20, 20);
 
             foreach (ToolStripItem item in toolStrip.Items)
             {
                 if (item is ToolStripButton btn)
                 {
-                    btn.DisplayStyle = ToolStripItemDisplayStyle.Text;
-                    btn.ForeColor    = Color.FromArgb(230, 230, 230);
-                    btn.Padding      = new Padding(10, 0, 10, 0);
-                    btn.AutoSize     = true;
+                    btn.ForeColor = Color.FromArgb(230, 230, 230);
+                    btn.AutoSize  = true;
                 }
             }
 
+            // Toolbar icons (Segoe Fluent Icons / MDL2 Assets glyphs)
+            var ic = Color.FromArgb(215, 215, 215);
+            const int S = 20;
 
-            // Rotation arrows get tighter padding
-            btnRotateLeft.Padding  = new Padding(6, 0, 6, 0);
-            btnRotateRight.Padding = new Padding(6, 0, 6, 0);
+            // Zoom group — icon only
+            btnZoomIn.Image        = MakeIconBitmap("\uE8A3", S, ic);
+            btnZoomIn.Text         = "";
+            btnZoomIn.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnZoomIn.Padding      = new Padding(9, 3, 9, 3);
+
+            btnZoomOut.Image        = MakeIconBitmap("\uE71F", S, ic);
+            btnZoomOut.Text         = "";
+            btnZoomOut.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnZoomOut.Padding      = new Padding(9, 3, 9, 3);
+
+            btnFit.Image        = MakeIconBitmap("\uE8B3", S, ic);
+            btnFit.Text         = "";
+            btnFit.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnFit.Padding      = new Padding(9, 3, 9, 3);
+
+            // Crop — icon + text
+            btnCrop.Image             = MakeIconBitmap("\uE7A8", S, ic);
+            btnCrop.Text              = "Crop";
+            btnCrop.DisplayStyle      = ToolStripItemDisplayStyle.ImageAndText;
+            btnCrop.TextImageRelation = TextImageRelation.ImageBeforeText;
+            btnCrop.Padding           = new Padding(9, 3, 11, 3);
+
+            // Guidelines group — icon + text
+            btnGuides.Image             = MakeIconBitmap("\uE81E", S, ic);
+            btnGuides.Text              = "Guidelines";
+            btnGuides.DisplayStyle      = ToolStripItemDisplayStyle.ImageAndText;
+            btnGuides.TextImageRelation = TextImageRelation.ImageBeforeText;
+            btnGuides.Padding           = new Padding(9, 3, 11, 3);
+
+            btnAutoDetect.Image             = MakeIconBitmap("\uE8D2", S, ic);
+            btnAutoDetect.Text              = "Auto-Detect";
+            btnAutoDetect.DisplayStyle      = ToolStripItemDisplayStyle.ImageAndText;
+            btnAutoDetect.TextImageRelation = TextImageRelation.ImageBeforeText;
+            btnAutoDetect.Padding           = new Padding(9, 3, 11, 3);
+
+            btnCropToBorders.Image             = MakeIconBitmap("\uE7C5", S, ic);
+            btnCropToBorders.Text              = "Crop to Borders";
+            btnCropToBorders.DisplayStyle      = ToolStripItemDisplayStyle.ImageAndText;
+            btnCropToBorders.TextImageRelation = TextImageRelation.ImageBeforeText;
+            btnCropToBorders.Padding           = new Padding(9, 3, 11, 3);
+
+            // Rotate — icon only (Unicode arrows via Segoe UI Symbol for correct directionality)
+            btnRotateLeft.Image        = MakeIconBitmap("\u21BA", S, ic, "Segoe UI Symbol");
+            btnRotateLeft.Text         = "";
+            btnRotateLeft.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnRotateLeft.Padding      = new Padding(9, 3, 9, 3);
+
+            btnRotateRight.Image        = MakeIconBitmap("\u21BB", S, ic, "Segoe UI Symbol");
+            btnRotateRight.Text         = "";
+            btnRotateRight.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnRotateRight.Padding      = new Padding(9, 3, 9, 3);
 
             txtRotateStep.ForeColor = Color.FromArgb(160, 160, 160);
-            txtRotateStep.Font      = new Font("Segoe UI", 9.5f);
+            txtRotateStep.Font      = new Font("Segoe UI", 9f);
+            txtRotateStep.Padding   = new Padding(2, 0, 6, 0);
+
+            lblRotationTotal.ForeColor = Color.FromArgb(160, 160, 160);
+            lblRotationTotal.Font      = new Font("Segoe UI", 9f);
+            lblRotationTotal.Padding   = new Padding(0, 0, 6, 0);
 
             lblZoom.ForeColor = Color.FromArgb(160, 160, 160);
             lblZoom.Font      = new Font("Segoe UI", 9f);
@@ -80,14 +138,32 @@ namespace CardAnalysis
             lblMeasure.Font       = new Font("Segoe UI", 8.5f, FontStyle.Regular);
         }
 
+        private static Bitmap MakeIconBitmap(string glyph, int size, Color color, string? fontOverride = null)
+        {
+            var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using var g = Graphics.FromImage(bmp);
+            g.SmoothingMode     = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            g.Clear(Color.Transparent);
+            string fontName = fontOverride
+                ?? (FontFamily.Families.Any(f => f.Name == "Segoe Fluent Icons")
+                    ? "Segoe Fluent Icons" : "Segoe MDL2 Assets");
+            using var font  = new Font(fontName, size * 0.78f, GraphicsUnit.Pixel);
+            using var brush = new SolidBrush(color);
+            using var sf    = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            g.DrawString(glyph, font, brush, new RectangleF(0, 0, size, size), sf);
+            return bmp;
+        }
+
         // ── File open ────────────────────────────────────────────────────
 
         private void BtnOpen_Click(object? sender, EventArgs e)
         {
             using var dialog = new OpenFileDialog
             {
-                Title = "Open Sports Card Image",
-                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff;*.tif;*.webp|All Files|*.*"
+                Title            = "Open Sports Card Image",
+                Filter           = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff;*.tif;*.webp|All Files|*.*",
+                InitialDirectory = Directory.Exists(_rawImageFolder) ? _rawImageFolder : ""
             };
 
             if (dialog.ShowDialog() != DialogResult.OK) return;
@@ -99,6 +175,8 @@ namespace CardAnalysis
                 string fileName = Path.GetFileName(dialog.FileName);
                 lblFileName.Text = fileName;
                 Text = $"Card Analysis  —  {fileName}";
+                _totalRotation = 0f;
+                UpdateRotationLabel();
                 UpdateMeasureLabel();
             }
             catch (Exception ex)
@@ -112,8 +190,10 @@ namespace CardAnalysis
         {
             imageCanvas.ClearImage();
             _loadedFilePath = null;
+            _totalRotation  = 0f;
             lblFileName.Text = "No file loaded";
-            lblMeasure.Text = "";
+            lblMeasure.Text  = "";
+            lblRotationTotal.Text = "";
             Text = "Card Analysis";
             SyncGuideButtons();
         }
@@ -121,7 +201,10 @@ namespace CardAnalysis
         // ── Save ─────────────────────────────────────────────────────────
 
         private string? _loadedFilePath;
-        private bool _overlaySave = true;
+        private bool   _overlaySave          = true;
+        private string _rawImageFolder       = "";
+        private string _processedImageFolder = "";
+        private float  _totalRotation        = 0f;
 
         private void BtnSave_Click(object? sender, EventArgs e)
             => RunSaveDialog();
@@ -145,9 +228,11 @@ namespace CardAnalysis
                 FilterIndex      = 2,
                 DefaultExt       = "jpg",
                 FileName         = defaultName,
-                InitialDirectory = _loadedFilePath is not null
-                    ? Path.GetDirectoryName(_loadedFilePath)
-                    : null
+                InitialDirectory = Directory.Exists(_processedImageFolder)
+                    ? _processedImageFolder
+                    : _loadedFilePath is not null
+                        ? Path.GetDirectoryName(_loadedFilePath)
+                        : ""
             };
 
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
@@ -200,13 +285,15 @@ namespace CardAnalysis
         {
             if (imageCanvas.IsCropMode)
             {
-                btnCrop.Text = "✕  Cancel Crop";
+                btnCrop.Text        = "Cancel Crop";
+                btnCrop.Checked     = true;
                 btnCrop.ToolTipText = "Cancel crop mode (Escape)";
-                lblFileName.Text = "Drag to select crop area  —  Enter to apply, Escape to cancel";
+                lblFileName.Text    = "Drag to select crop area  —  Enter to apply, Escape to cancel";
             }
             else
             {
-                btnCrop.Text = "✂  Crop";
+                btnCrop.Text        = "Crop";
+                btnCrop.Checked     = false;
                 btnCrop.ToolTipText = "Enter crop mode (C)";
                 RestoreFileNameLabel();
                 UpdateMeasureLabel();
@@ -219,7 +306,8 @@ namespace CardAnalysis
         {
             using var dlg = new OptionsDialog(
                 imageCanvas.RotationStep, _overlaySave,
-                imageCanvas.PixelWhiteThreshold, imageCanvas.LineWhiteThreshold, imageCanvas.BorderTolerancePct);
+                imageCanvas.PixelWhiteThreshold, imageCanvas.LineWhiteThreshold, imageCanvas.BorderTolerancePct,
+                _rawImageFolder, _processedImageFolder);
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
             imageCanvas.RotationStep        = dlg.RotationStep;
@@ -227,15 +315,19 @@ namespace CardAnalysis
             imageCanvas.LineWhiteThreshold  = dlg.LineWhiteThreshold;
             imageCanvas.BorderTolerancePct  = dlg.BorderTolerancePct;
             txtRotateStep.Text              = dlg.RotationStep.ToString("F1") + "°";
-            _overlaySave                    = dlg.OverlaySave;
+            _overlaySave          = dlg.OverlaySave;
+            _rawImageFolder       = dlg.RawImageFolder;
+            _processedImageFolder = dlg.ProcessedImageFolder;
 
             new AppSettings
             {
-                RotationStep        = dlg.RotationStep,
-                OverlaySave         = dlg.OverlaySave,
-                PixelWhiteThreshold = dlg.PixelWhiteThreshold,
-                LineWhiteThreshold  = dlg.LineWhiteThreshold,
-                BorderTolerancePct  = dlg.BorderTolerancePct,
+                RotationStep         = dlg.RotationStep,
+                OverlaySave          = dlg.OverlaySave,
+                PixelWhiteThreshold  = dlg.PixelWhiteThreshold,
+                LineWhiteThreshold   = dlg.LineWhiteThreshold,
+                BorderTolerancePct   = dlg.BorderTolerancePct,
+                RawImageFolder       = dlg.RawImageFolder,
+                ProcessedImageFolder = dlg.ProcessedImageFolder,
             }.Save();
         }
 
@@ -244,7 +336,21 @@ namespace CardAnalysis
 
         private void ApplyRotation(float degrees)
         {
+            if (imageCanvas.ImageSize is null) return;
             imageCanvas.RotateBy(degrees);
+            _totalRotation += degrees;
+            UpdateRotationLabel();
+        }
+
+        private void UpdateRotationLabel()
+        {
+            if (imageCanvas.ImageSize is null)
+            {
+                lblRotationTotal.Text = "";
+                return;
+            }
+            string sign = _totalRotation >= 0 ? "+" : "";
+            lblRotationTotal.Text = $"{sign}{_totalRotation:F1}°";
         }
 
         // ── Guidelines ───────────────────────────────────────────────────
@@ -265,7 +371,7 @@ namespace CardAnalysis
 
         private void SyncGuideButtons()
         {
-            btnGuides.Text = imageCanvas.GuidesVisible ? "⊹  Guidelines  ✓" : "⊹  Guidelines";
+            btnGuides.Checked        = imageCanvas.GuidesVisible;
             btnCropToBorders.Enabled = imageCanvas.GuidesVisible;
         }
 
